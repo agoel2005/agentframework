@@ -1,0 +1,19 @@
+import json
+
+
+def check_interview_score(data_path: str) -> str:
+    """
+    Check the interview score of a candidate.
+    """
+    with open(data_path, "r") as file:
+        data = json.load(file)
+
+    round_1_excitment = data["R1: Excitement"]
+    round_2_interview_1 = data["SWE R2 I1: Overall"]
+    round_2_interview_2 = data["SWE R2 I2: Overall"]
+    interview_score = (round_1_excitment + round_2_interview_1 + round_2_interview_2) / 3
+
+    if interview_score > 4:
+        return "Good fit"
+    else:
+        return "Not a good fit"
