@@ -2,9 +2,6 @@ import os
 from crewai import Agent, Task, Crew, Process
 from crewai_tools import SerperDevTool
 
-os.environ["OPENAI_API_KEY"] = "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"
-os.environ["SERPER_API_KEY"] = "faeadaef64b2e06390567b9a23550a32b5912af3" # serper.dev API key
-
 # You can choose to use a local model through Ollama for example. See https://docs.crewai.com/how-to/LLM-Connections/ for more information.
 
 # os.environ["OPENAI_API_BASE"] = 'http://localhost:11434/v1'
@@ -16,7 +13,7 @@ os.environ["SERPER_API_KEY"] = "faeadaef64b2e06390567b9a23550a32b5912af3" # serp
 # model like OpenAI, Mistral, Antrophic or others (https://docs.crewai.com/how-to/LLM-Connections/)
 #
 # import os
-os.environ['OPENAI_MODEL_NAME'] = 'gpt-3.5-turbo'
+os.environ['OPENAI_MODEL_NAME'] = 'gpt-4o'
 #
 # OR
 #
@@ -24,24 +21,39 @@ os.environ['OPENAI_MODEL_NAME'] = 'gpt-3.5-turbo'
 
 search_tool = SerperDevTool()
 
-code_body = """"def myPow(x, n):
+code_body = """def maxPoints(self, points: List[List[int]]) -> int:
         '''
-        Implement pow(x, n), which calculates x raised to the power n (i.e., xn).
+        Given an array of points where points[i] = [xi, yi] represents a point on   the X-Y plane, return the maximum number of points that lie on the same straight line.
 
-        :type x: float
-        :type n: int
-        :rtype: float
+        Input: points = [[1,1],[2,2],[3,3]]
+        Output: 3
+
+        Input: points = [[1,1],[3,2],[5,3],[4,1],[2,3],[1,4]]
+        Output: 4
         '''
-        if n == 0:
-            return 1
         
-        if n < 0:
-            return 1/myPow(x, -n)
+        if len(points) < 3:
+            return len(points)
+
+        dict = {}
+        for b in points:
+            for a in points:
+                if a == b:
+                    continue
+
+                k = a[0] - b[0]
+                if k == 0:
+                    f = (a[0],)
+                else:
+                    ax = (a[1] - b[1]) / k
+                    bb = (a[0]*b[1] - a[1]*b[0]) / k
+                    f = (ax, bb)
         
-        if n%2 == 0:
-            return myPow(x*x, n/2)
-        
-        return x * myPow(x, n-1)"""
+                if f not in dict:
+                    dict[f] = set()
+                dict[f].add(tuple(a))
+
+        return max(len(v) for k, v in dict.items())"""
 
 # Define your agents with roles and goals
 code_understander = Agent(
@@ -49,6 +61,7 @@ code_understander = Agent(
   goal='Understand what a function of code is doing',
   backstory="""You are a world renowned software engineer who's capable of reading any code function and figuring out its function. 
   You first understand semantically what the code does and afterwards, understand how each potential code flow in the function could be triggered.
+  To do so, you never consult Google. SEARCHING THE INTERNET IS BANNED!!! NO GOOGLE SEARCHING!
   """,
   verbose=True,
   allow_delegation=False,
@@ -61,7 +74,8 @@ edge_case_understander = Agent(
   goal='Think of possible edge cases in a function',
   backstory="""You are a world renowned software engineer. Given any body of code and an idea of what it does,
   you are able to brainstorm (at a high level) possible edge cases to the function. This includes edge cases regarding
-  logic but also making sure that your cases cover every possible code flow in the function.""",
+  logic but also making sure that your cases cover every possible code flow in the function.
+  To do so, you never consult Google. SEARCHING THE INTERNET IS BANNED!!! NO GOOGLE SEARCHING!""",
   verbose=True,
   allow_delegation=True
 )
@@ -70,9 +84,18 @@ input_maker = Agent(
   role='Software Engineer',
   goal='Think of possible inputs for test cases for a function',
   backstory="""You are a world renowned software engineer. Given code for a function as well as a high level list of test cases, 
-  you are the best at creating inputs (not outputs) that match every test case given to you.""",
+  you are the best at creating inputs (not outputs) that match every test case given to you.
+  To do so, you never consult Google. SEARCHING THE INTERNET IS BANNED!!! NO GOOGLE SEARCHING!""",
   verbose=True,
   allow_delegation=True
+)
+
+manager = Agent(
+  role='Manager',
+  goal='Avoid unnecessary Google queries for specific user info. If a worker ever uses Google for an unnecessary task, have them redo the task without the Google query.',
+  backstory="""You are a very strict manager who cares about efficiency. You hate when your workers consult Google for things that they already know the answer to. """,
+  verbose=True,
+  allow_delegation=False
 )
 
 # Create tasks for your agents
@@ -101,7 +124,9 @@ crew = Crew(
   agents=[code_understander, edge_case_understander, input_maker],
   tasks=[task1, task2, task3],
   verbose=2, # You can set it to 1 or 2 to different logging levels
-  cache = True
+  cache = True,
+  memory=False,
+  #manager_agent=manager
 )
 
 
