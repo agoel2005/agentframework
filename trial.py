@@ -53,7 +53,7 @@ code_body = """def maxPoints(self, points: List[List[int]]) -> int:
                     dict[f] = set()
                 dict[f].add(tuple(a))
 
-        return max(len(v) for k, v in dict.items()) - 1"""
+        return max(len(v) for k, v in dict.items())"""
 
 # Define your agents with roles and goals
 code_understander = Agent(
@@ -184,7 +184,14 @@ task7 = Task(
   Every time you prompt the code runner, give it the code as part of your query so it remembers what code to run. 
   
   Once all test cases come become correct, you're done.""",
-  expected_output="List of test cases as well as the new code. Additionally, make a file",
+  expected_output=f"""List of test cases as well as the new code. Put those in a JSON file of the form:
+  {{
+      test_cases: [the test_cases]
+      code: [the updated code]
+  }}. Before submitting the code, double check to make sure it is proper JSON and that if I run json.loads on the output, I won't get an error.
+  
+  In [the updated code], make sure to put the entire code body even if no updates were made. The no updates code is found here: {code_body}. However, make sure it is formatted
+  as one big string.""",
   agent=code_fixer
 )
 # Instantiate your crew with a sequential process
@@ -204,3 +211,31 @@ result = crew.kickoff()
 
 print("######################")
 print(result)
+import json
+from openai import OpenAI
+f = open("storage.txt", "w")
+f.write(result)
+f.close()
+
+f = open("storage.txt", "r")
+result = f.readlines()
+f.close()
+
+ans = ""
+found = False
+
+for res in result:
+
+    if "```json" in res:
+        found = True
+    elif "```" in res:
+        found=False
+    
+    if found and "```json" not in res:
+        ans = ans + res
+
+import json 
+format = json.loads(ans)
+
+with open("storage_maxpoints.txt", "w") as f:
+    json.dump(format, f)
