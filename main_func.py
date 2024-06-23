@@ -237,5 +237,5 @@ for res in result:
 import json 
 format = json.loads(ans)
 
-with open("storage_maxpoints.txt", "w") as f:
+with open("storage_maxpoints.json", "w") as f:
     json.dump(format, f)
